@@ -1,7 +1,7 @@
 # YuSheng.OrchardCore.Media.Aliyun
 aliyun oss orchardcore plugin
 
-[![NuGet](https://img.shields.io/nuget/v/YuSheng.OrchardCore.Media.AliYun.svg)](https://www.nuget.org/packages/YuSheng.OrchardCore.Media.AliYun
+[![NuGet](https://img.shields.io/nuget/v/YuSheng.OrchardCore.Media.AliYun.svg)](https://www.nuget.org/packages/YuSheng.OrchardCore.Media.AliYun)
 
 ## appsettings.json config demo
 ```
