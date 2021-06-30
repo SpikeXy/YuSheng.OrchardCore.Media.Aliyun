@@ -1,0 +1,36 @@
+name: .NET
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --no-restore
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+    - name: Build with dotnet
+      run: dotnet build --configuration Release
+      
+    - name: Deploy nuget packages
+      run: 
+        dotnet nuget push './YuSheng.OrchardCore.FileStorage.AliYunOss/bin/Release/*.nupkg' -k ${{secrets.YUSHENG_ORCHARDCORE}} -n true -s https://api.nuget.org/v3/index.json --skip-duplicate 
+    - name: Deploy nuget packages
+      run: 
+        dotnet nuget push './YuSheng.OrchardCore.Media.AliYun/bin/Release/*.nupkg' -k ${{secrets.YUSHENG_ORCHARDCORE}} -n true -s https://api.nuget.org/v3/index.json --skip-duplicate   
+      
+      

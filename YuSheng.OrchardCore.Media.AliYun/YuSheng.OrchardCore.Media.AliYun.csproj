@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Authors>spike</Authors>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Description>aliyun oss storage plug</Description>
+    <Version>1.0.2</Version>
+    <AssemblyVersion>0.0.0.0</AssemblyVersion>
+    <FileVersion>0.0.0.0</FileVersion>
+    <PackageProjectUrl>https://github.com/SpikeXy/YuSheng.OrchardCore.Media.Aliyun</PackageProjectUrl>
+    <PackageIcon>horse-face-front-view-sketch.png</PackageIcon>
+    <PackageIconUrl />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OrchardCore.Abstractions" Version="1.0.0-rc2-13450" />
+    <PackageReference Include="OrchardCore.Liquid" Version="1.0.0-rc2-13450" />
+    <PackageReference Include="OrchardCore.Media.Core" Version="1.0.0-rc2-13450" />
+    <PackageReference Include="OrchardCore.Module.Targets" Version="1.0.0-rc2-13450" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="horse-face-front-view-sketch.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\YuSheng.OrchardCore.FileStorage.AliYunOss\YuSheng.OrchardCore.FileStorage.AliYunOss.csproj" />
+  </ItemGroup>
+
+</Project>
