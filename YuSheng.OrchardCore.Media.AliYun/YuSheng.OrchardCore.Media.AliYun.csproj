@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <Authors>spike</Authors>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Description>aliyun oss storage plug</Description>
@@ -18,10 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="OrchardCore.Abstractions" Version="1.0.0-rc2-13450" />
-    <PackageReference Include="OrchardCore.Liquid" Version="1.0.0-rc2-13450" />
-    <PackageReference Include="OrchardCore.Media.Core" Version="1.0.0-rc2-13450" />
-    <PackageReference Include="OrchardCore.Module.Targets" Version="1.0.0-rc2-13450" />
+    <PackageReference Include="OrchardCore.Abstractions" Version="1.3.0" />
+    <PackageReference Include="OrchardCore.Liquid" Version="1.3.0" />
+    <PackageReference Include="OrchardCore.Media.Core" Version="1.3.0" />
+    <PackageReference Include="OrchardCore.Module.Targets" Version="1.3.0" />
   </ItemGroup>
 
   <ItemGroup>
