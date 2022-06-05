@@ -9,7 +9,7 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>spike</Authors>
     <Description>aliyun oss storage plug interface</Description>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <PackageProjectUrl>https://github.com/SpikeXy/YuSheng.OrchardCore.Media.Aliyun</PackageProjectUrl>
     <PackageIcon>horse-face-front-view-sketch.png</PackageIcon>
     <PackageIconUrl />
@@ -23,6 +23,7 @@
     <PackageReference Include="Aliyun.OSS.SDK.NetCore" Version="2.13.0" />
     <PackageReference Include="OrchardCore.Abstractions" Version="1.3.0" />
     <PackageReference Include="OrchardCore.FileStorage.Abstractions" Version="1.3.0" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>
 
   <ItemGroup>

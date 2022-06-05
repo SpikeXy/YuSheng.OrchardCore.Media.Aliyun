@@ -1,8 +1,4 @@
-
-
-// OrchardCore.FileStorage.AliYunOss.OssFileStore
 using Aliyun.OSS;
-using Microsoft.AspNetCore.StaticFiles;
 using OrchardCore.FileStorage;
 using System;
 using System.Collections.Generic;
@@ -30,297 +26,290 @@ namespace YuSheng.OrchardCore.FileStorage.AliYunOss
             _ossClient = new OssClient(_options.Endpoint, _options.AccessKeyId, _options.AccessKeySecret);
         }
 
-        public async Task<IFileStoreEntry> GetFileInfoAsync(string path)
+        public Task<IFileStoreEntry> GetFileInfoAsync(string path)
         {
-            return await Task.Run<IFileStoreEntry>((Func<IFileStoreEntry>)delegate
+
+            try
             {
-                try
+                ObjectMetadata objectMetadata = _ossClient.GetObjectMetadata(_options.BucketName, path.StartsWith('/') ? path.Substring(1) : path);
+                if (objectMetadata == null)
                 {
-                    ObjectMetadata objectMetadata = _ossClient.GetObjectMetadata(_options.BucketName, path.StartsWith('/') ? path.Substring(1) : path);
-                    if (objectMetadata == null)
-                    {
-                        return null;
-                    }
-                    return new OssFile(path, objectMetadata.ContentLength, objectMetadata.LastModified);
+                    return Task.FromResult<IFileStoreEntry>(null);
                 }
-                catch (Exception ex)
-                {
-                    string message = ex.Message;
-                    return null;
-                }
-            });
+                return Task.FromResult<IFileStoreEntry>(new OssFile(path, objectMetadata.ContentLength, objectMetadata.LastModified));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult<IFileStoreEntry>(null);
+            }
         }
 
-        public async Task<IFileStoreEntry> GetDirectoryInfoAsync(string path)
+        public Task<IFileStoreEntry> GetDirectoryInfoAsync(string path)
         {
             try
             {
-                return await Task.Run<IFileStoreEntry>((Func<IFileStoreEntry>)delegate
+                if (string.IsNullOrEmpty(path))
                 {
-                    try
+                    //the root folder path
+                    path = _options.BasePath + _directoryMarkerFileName;
+                }
+                else if (path.Contains(_directoryMarkerFileName))
+                {
+                    //this path is created folder path
+                    //do nothing
+                }
+                else if (path.Split("/").FirstOrDefault() == _options.BasePath.Split("/").FirstOrDefault())
+                {
+
+                    if (path.LastOrDefault() == '/')
                     {
-                        if (string.IsNullOrEmpty(path))
-                        {
-                            //the root folder path
-                            path = _options.BasePath + _directoryMarkerFileName;
-                        }
-                        else if (path.Contains(_directoryMarkerFileName))
-                        {
-                            //this path is created folder path
-                            //do nothing
-                        }
-                        else if (path.Split("/").FirstOrDefault() == _options.BasePath.Split("/").FirstOrDefault())
-                        {
-
-                            if (path.LastOrDefault() == '/')
-                            {
-                                //cursor click the folder
-                                path += _directoryMarkerFileName;
-                            }
-                            else
-                            {
-                                //created folder finished
-                                path += "/" + _directoryMarkerFileName;
-                            }
-                        }
-                        else
-                        {
-
-                            path = _options.BasePath + path + "/" + _directoryMarkerFileName;
-                        }
-
-
-                        OssObject ossObject = _ossClient.GetObject(_options.BucketName, path);
-                        if (ossObject == null)
-                        {
-                            return null;
-                        }
-                        return new OssDirectory(path, ossObject.Metadata.LastModified);
+                        //cursor click the folder
+                        path += _directoryMarkerFileName;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        return null;
+                        //created folder finished
+                        path += "/" + _directoryMarkerFileName;
                     }
-                });
+                }
+                else
+                {
+
+                    path = _options.BasePath + path + "/" + _directoryMarkerFileName;
+                }
+
+                OssObject ossObject = _ossClient.GetObject(_options.BucketName, path);
+                if (ossObject == null)
+                {
+                    return Task.FromResult<IFileStoreEntry>(null);
+                }
+                return Task.FromResult<IFileStoreEntry>(new OssDirectory(path, ossObject.Metadata.LastModified));
+            }
+            catch (Exception ex)
+            {
+                if (path.ToLower().Contains("_users") || path.ToLower().Contains("_users"))
+                {
+                    string objectContent = "this is text file tag";
+                    byte[] binaryData = Encoding.ASCII.GetBytes(objectContent);
+                    MemoryStream requestContent = new MemoryStream(binaryData);
+                    PutObjectResult result = _ossClient.PutObject(_options.BucketName, path, requestContent);
+                    if (result.HttpStatusCode == HttpStatusCode.OK)
+                    {
+                        return Task.FromResult<IFileStoreEntry>(new OssDirectory(path, DateTime.Now));
+                    }
+                }
+                return Task.FromResult<IFileStoreEntry>(null);
+            }
+
+        }
+
+        public IAsyncEnumerable<IFileStoreEntry> GetDirectoryContentAsync(string path = "", bool includeSubDirectories = false)
+        {
+
+            try
+            {
+                if (string.IsNullOrEmpty(path))
+                {
+                    path = _options.BasePath;
+                }
+                List<IFileStoreEntry> list = new List<IFileStoreEntry>();
+                List<OssFile> list2 = new List<OssFile>();
+                List<OssDirectory> list3 = new List<OssDirectory>();
+                ObjectListing objectListing = null;
+                string marker = string.Empty;
+                do
+                {
+                    ListObjectsRequest listObjectsRequest = new ListObjectsRequest(_options.BucketName)
+                    {
+                        Marker = marker,
+                        MaxKeys = 100,
+                        Delimiter = "/",
+                        Prefix = path
+                    };
+                    objectListing = _ossClient.ListObjects(listObjectsRequest);
+                    foreach (string current in objectListing.CommonPrefixes)
+                    {
+                        if (current.LastIndexOf("/") == current.Length - 1 && !current.Contains(_directoryMarkerFileName))
+                        {
+                            list3.Add(new OssDirectory(current));
+                        }
+                    }
+                    foreach (OssObjectSummary current2 in objectListing.ObjectSummaries)
+                    {
+                        if (!(current2.Key == path))
+                        {
+                            string a = current2.Key.Split('/').LastOrDefault();
+                            if (!a.Equals(_directoryMarkerFileName))
+                            {
+                                OssFile item = new OssFile(current2.Key, current2.Size, current2.LastModified);
+                                list2.Add(item);
+                            }
+                        }
+                    }
+                    marker = objectListing.NextMarker;
+                }
+                while (objectListing.IsTruncated);
+                list.AddRange(list3);
+                list.AddRange(list2);
+                return list.ToAsyncEnumerable();
             }
             catch (Exception)
             {
                 return null;
             }
+
         }
 
-        public async Task<IEnumerable<IFileStoreEntry>> GetDirectoryContentAsync(string path = "", bool includeSubDirectories = false)
+        public Task<bool> TryCreateDirectoryAsync(string path)
         {
-            return await Task.Run<IEnumerable<IFileStoreEntry>>((Func<IEnumerable<IFileStoreEntry>>)delegate
+
+            if (_ossClient.DoesObjectExist(_options.BucketName, path))
             {
-                try
-                {
-                    if (string.IsNullOrEmpty(path))
-                    {
-                        path = _options.BasePath;
-                    }
-                    List<IFileStoreEntry> list = new List<IFileStoreEntry>();
-                    List<OssFile> list2 = new List<OssFile>();
-                    List<OssDirectory> list3 = new List<OssDirectory>();
-                    ObjectListing objectListing = null;
-                    string marker = string.Empty;
-                    do
-                    {
-                        ListObjectsRequest listObjectsRequest = new ListObjectsRequest(_options.BucketName)
-                        {
-                            Marker = marker,
-                            MaxKeys = 100,
-                            Delimiter = "/",
-                            Prefix = path
-                        };
-                        objectListing = _ossClient.ListObjects(listObjectsRequest);
-                        foreach (string current in objectListing.CommonPrefixes)
-                        {
-                            if (current.LastIndexOf("/") == current.Length - 1 && !current.Contains(_directoryMarkerFileName))
-                            {
-                                list3.Add(new OssDirectory(current));
-                            }
-                        }
-                        foreach (OssObjectSummary current2 in objectListing.ObjectSummaries)
-                        {
-                            if (!(current2.Key == path))
-                            {
-                                string a = current2.Key.Split('/').LastOrDefault();
-                                if (!a.Equals(_directoryMarkerFileName))
-                                {
-                                    OssFile item = new OssFile(current2.Key, current2.Size, current2.LastModified);
-                                    list2.Add(item);
-                                }
-                            }
-                        }
-                        marker = objectListing.NextMarker;
-                    }
-                    while (objectListing.IsTruncated);
-                    list.AddRange(list3);
-                    list.AddRange(list2);
-                    return ((IEnumerable<IFileStoreEntry>)list).OrderByDescending((Func<IFileStoreEntry, bool>)((IFileStoreEntry x) => x.IsDirectory)).ToArray();
-                }
-                catch (Exception)
-                {
-                    return null;
-                }
-            });
-        }
-
-        public async Task<bool> TryCreateDirectoryAsync(string path)
-        {
-            return await Task.Run<bool>((Func<bool>)delegate
+                throw new FileStoreException("Cannot create directory because the path '" + path + "' already exists and is a file.");
+            }
+            string filePath = (!path.Contains(_options.BasePath)) ? (_options.BasePath + path + "/" + _directoryMarkerFileName) : (path + "/" + _directoryMarkerFileName);
+            try
             {
-                if (_ossClient.DoesObjectExist(_options.BucketName, path))
-                {
-                    throw new FileStoreException("Cannot create directory because the path '" + path + "' already exists and is a file.");
-                }
-                string filePath = (!path.Contains(_options.BasePath)) ? (_options.BasePath + path + "/" + _directoryMarkerFileName) : (path + "/" + _directoryMarkerFileName);
-                try
-                {
-                    string objectContent = "this is text file tag";
-                    byte[] binaryData = Encoding.ASCII.GetBytes(objectContent);
-                    MemoryStream requestContent = new MemoryStream(binaryData);
-                    PutObjectResult result = _ossClient.PutObject(_options.BucketName, filePath, requestContent);
-                    return result.HttpStatusCode == HttpStatusCode.OK;
-                }
-                catch (Exception ex)
-                {
-                    return false;
-                }
+                string objectContent = "this is text file tag";
+                byte[] binaryData = Encoding.ASCII.GetBytes(objectContent);
+                MemoryStream requestContent = new MemoryStream(binaryData);
+                PutObjectResult result = _ossClient.PutObject(_options.BucketName, filePath, requestContent);
+                var re = result.HttpStatusCode == HttpStatusCode.OK;
+                return Task.FromResult(re);
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(false);
 
-            });
+            }
+
         }
 
-        public async Task<bool> TryDeleteFileAsync(string path)
+        public Task<bool> TryDeleteFileAsync(string path)
         {
-            return await Task.Run<bool>((Func<bool>)delegate
+            try
             {
                 _ossClient.DeleteObject(_options.BucketName, path);
-                return true;
-            });
+                return Task.FromResult(true);
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(false);
+            }
+
         }
 
-        public async Task<bool> TryDeleteDirectoryAsync(string path)
+        public Task<bool> TryDeleteDirectoryAsync(string path)
         {
-            return await Task.Run<bool>((Func<bool>)delegate
+            if (string.IsNullOrEmpty(path))
             {
-                if (string.IsNullOrEmpty(path))
+                throw new FileStoreException("Cannot delete the root directory.");
+            }
+            string delimiter = "";
+            try
+            {
+                List<IFileStoreEntry> list = new List<IFileStoreEntry>();
+                List<OssFile> list2 = new List<OssFile>();
+                List<OssDirectory> list3 = new List<OssDirectory>();
+                ObjectListing objectListing = null;
+                string marker = string.Empty;
+                do
                 {
-                    throw new FileStoreException("Cannot delete the root directory.");
-                }
-                string delimiter = "";
-                try
-                {
-                    List<IFileStoreEntry> list = new List<IFileStoreEntry>();
-                    List<OssFile> list2 = new List<OssFile>();
-                    List<OssDirectory> list3 = new List<OssDirectory>();
-                    ObjectListing objectListing = null;
-                    string marker = string.Empty;
-                    do
+                    ListObjectsRequest listObjectsRequest = new ListObjectsRequest(_options.BucketName)
                     {
-                        ListObjectsRequest listObjectsRequest = new ListObjectsRequest(_options.BucketName)
+                        Marker = marker,
+                        MaxKeys = 100,
+                        Delimiter = delimiter,
+                        Prefix = path
+                    };
+                    objectListing = _ossClient.ListObjects(listObjectsRequest);
+                    foreach (OssObjectSummary current in objectListing.ObjectSummaries)
+                    {
+                        if (current.Key.LastIndexOf("/") == current.Key.Length - 1)
                         {
-                            Marker = marker,
-                            MaxKeys = 100,
-                            Delimiter = delimiter,
-                            Prefix = path
-                        };
-                        objectListing = _ossClient.ListObjects(listObjectsRequest);
-                        foreach (OssObjectSummary current in objectListing.ObjectSummaries)
-                        {
-                            if (current.Key.LastIndexOf("/") == current.Key.Length - 1)
-                            {
-                                list3.Add(new OssDirectory(current.Key, current.LastModified));
-                            }
-                            else
-                            {
-                                list2.Add(new OssFile(current.Key, current.Size, current.LastModified));
-                            }
+                            list3.Add(new OssDirectory(current.Key, current.LastModified));
                         }
-                        marker = objectListing.NextMarker;
+                        else
+                        {
+                            list2.Add(new OssFile(current.Key, current.Size, current.LastModified));
+                        }
                     }
-                    while (objectListing.IsTruncated);
-                    list.AddRange(list3);
-                    list.AddRange(list2);
-                    foreach (OssFile current2 in list2)
-                    {
-                        _ossClient.DeleteObject(_options.BucketName, current2.Path);
-                    }
-                    return true;
+                    marker = objectListing.NextMarker;
                 }
-                catch (Exception)
+                while (objectListing.IsTruncated);
+                list.AddRange(list3);
+                list.AddRange(list2);
+                foreach (OssFile current2 in list2)
                 {
-                    return false;
+                    _ossClient.DeleteObject(_options.BucketName, current2.Path);
                 }
-            });
-        }
-
-        public async Task MoveFileAsync(string oldPath, string newPath)
-        {
-            await Task.Run<bool>((Func<bool>)delegate
+                return Task.FromResult(true);
+            }
+            catch (Exception)
             {
-                bool result = false;
-                try
-                {
-                    oldPath = oldPath.Replace("//", "/");
-                    newPath = newPath.Replace("//", "/");
-                    CopyObjectRequest copyObjectRequst = new CopyObjectRequest(_options.BucketName, oldPath, _options.BucketName, newPath);
-                    _ossClient.CopyObject(copyObjectRequst);
-                    _ossClient.DeleteObject(_options.BucketName, oldPath);
-                    result = true;
-                }
-                catch (Exception ex)
-                {
-                    string message = ex.Message;
-                }
-                return result;
-            });
+                return Task.FromResult(false);
+            }
         }
 
-        public async Task<Stream> GetFileStreamAsync(IFileStoreEntry fileStoreEntry)
+        public Task MoveFileAsync(string oldPath, string newPath)
+        {
+            try
+            {
+                oldPath = oldPath.Replace("//", "/");
+                newPath = newPath.Replace("//", "/");
+                CopyObjectRequest copyObjectRequst = new CopyObjectRequest(_options.BucketName, oldPath, _options.BucketName, newPath);
+                _ossClient.CopyObject(copyObjectRequst);
+                _ossClient.DeleteObject(_options.BucketName, oldPath);
+            }
+            catch (Exception ex)
+            {
+                string message = ex.Message;
+            }
+            return Task.CompletedTask;
+
+        }
+
+        public Task<Stream> GetFileStreamAsync(IFileStoreEntry fileStoreEntry)
         {
             OssFile ossFile = fileStoreEntry as OssFile;
 
-            return await GetFileStreamAsync(ossFile.Path);
+            return GetFileStreamAsync(ossFile.Path);
         }
 
-        public async Task<Stream> GetFileStreamAsync(string path)
+        public Task<Stream> GetFileStreamAsync(string path)
         {
             if (path.StartsWith("/"))
             {
                 path = path.Substring(1);
             }
-            return await Task.Run<Stream>((Func<Stream>)delegate
+
+            if (!_ossClient.DoesObjectExist(_options.BucketName, path))
             {
-                if (!_ossClient.DoesObjectExist(_options.BucketName, path))
-                {
-                    throw new FileStoreException("Cannot get file stream because the file '" + path + "' does not exist.");
-                }
-                OssObject ossObject = _ossClient.GetObject(_options.BucketName, path);
-                return ossObject.Content;
-            });
+                throw new FileStoreException("Cannot get file stream because the file '" + path + "' does not exist.");
+            }
+            OssObject ossObject = _ossClient.GetObject(_options.BucketName, path);
+            return Task.FromResult<Stream>(ossObject.Content);
         }
 
         public Task CopyFileAsync(string srcPath, string dstPath)
         {
-            return Task.Run((Action)delegate
-            {
-                CopyObjectRequest copyObjectRequst = new CopyObjectRequest(_options.BucketName, srcPath, _options.BucketName, dstPath);
-                _ossClient.CopyObject(copyObjectRequst);
-            });
+
+            CopyObjectRequest copyObjectRequst = new CopyObjectRequest(_options.BucketName, srcPath, _options.BucketName, dstPath);
+            _ossClient.CopyObject(copyObjectRequst);
+            return Task.CompletedTask;
         }
 
-        public async Task<string> CreateFileFromStreamAsync(string path, Stream inputStream, bool overwrite = false)
+        public Task<string> CreateFileFromStreamAsync(string path, Stream inputStream, bool overwrite = false)
         {
-            string contentTypeStr = "application/octet-stream";
-            ObjectMetadata objectMeta = new ObjectMetadata
+            try
             {
-                ContentType = contentTypeStr
-            };
-            List<string> strs = new List<string>();
-            return await Task.Run((Func<string>)delegate
-            {
+                string contentTypeStr = "application/octet-stream";
+                ObjectMetadata objectMeta = new ObjectMetadata
+                {
+                    ContentType = contentTypeStr
+                };
+                List<string> strs = new List<string>();
+
                 if (_ossClient.DoesObjectExist(_options.BucketName, path))
                 {
                     throw new FileStoreException("Cannot create file '" + path + "' because it already exists.");
@@ -368,8 +357,12 @@ namespace YuSheng.OrchardCore.FileStorage.AliYunOss
                     completeMultipartUploadRequest.PartETags.Add(partETag);
                 }
                 var multipartUploadResult = _ossClient.CompleteMultipartUpload(completeMultipartUploadRequest);
-                return path;
-            });
+                return Task.FromResult<string>(path);
+            }
+            catch (Exception)
+            {
+                return Task.FromResult<string>(string.Empty);
+            }
         }
     }
 }

@@ -8,7 +8,7 @@ namespace YuSheng.OrchardCore.Media.AliYun.Filters
 
     public class ResizeOssUrlFilter : ILiquidFilter
     {
-        public ValueTask<FluidValue> ProcessAsync(FluidValue input, FilterArguments arguments, TemplateContext ctx)
+        public ValueTask<FluidValue> ProcessAsync(FluidValue input, FilterArguments arguments, LiquidTemplateContext context)
         {
             string text = input.ToStringValue();
             bool flag = !text.Contains("?");
