@@ -8,7 +8,7 @@
     <FileVersion>0.0.0.0</FileVersion>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>spike</Authors>
-    <Description>aliyun oss storage plug interface</Description>
+    <Description>aliyun oss storage plugin interface</Description>
     <Version>1.0.3</Version>
     <PackageProjectUrl>https://github.com/SpikeXy/YuSheng.OrchardCore.Media.Aliyun</PackageProjectUrl>
     <PackageIcon>horse-face-front-view-sketch.png</PackageIcon>
